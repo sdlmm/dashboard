@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>首都圏 教育人口推計ダッシュボード（東京・埼玉・千葉）</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI',sans-serif;background:#f5f4f0;color:#1a1a18;min-height:100vh}
+header{background:#fff;border-bottom:1px solid #e0dfd7;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:16px;font-weight:500}
+header p{font-size:12px;color:#888780}
+.main{max-width:1000px;margin:0 auto;padding:20px 20px}
+.pref-bar{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.pref-btn{padding:7px 18px;font-size:13px;border:1.5px solid #d3d1c7;border-radius:20px;cursor:pointer;background:#fff;color:#5f5e5a;font-weight:500;transition:all .15s}
+.pref-btn:hover{background:#f1efe8}
+.pref-btn.active-tokyo{background:#185FA5;color:#fff;border-color:#185FA5}
+.pref-btn.active-saitama{background:#C94040;color:#fff;border-color:#C94040}
+.pref-btn.active-chiba{background:#2A7A3B;color:#fff;border-color:#2A7A3B}
+.pref-btn.active-kanagawa{background:#7A3B8A;color:#fff;border-color:#7A3B8A}
+.pref-label{font-size:12px;color:#888780;margin-right:4px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center}
+.ctrl-group{display:flex;align-items:center;gap:6px;font-size:13px;color:#5f5e5a}
+select{font-size:13px;padding:6px 10px;border:1px solid #d3d1c7;border-radius:8px;background:#fff;color:#1a1a18;cursor:pointer;outline:none}
+.year-selector{display:flex;gap:4px;flex-wrap:wrap}
+.year-btn{padding:5px 11px;font-size:12px;border:1px solid #d3d1c7;border-radius:6px;cursor:pointer;background:#fff;color:#5f5e5a;transition:all .15s;white-space:nowrap}
+.year-btn:hover{background:#f1efe8}
+.year-btn.active{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.tab-bar{display:flex;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:7px 16px;font-size:13px;border:1px solid #d3d1c7;border-radius:8px;cursor:pointer;background:#fff;color:#5f5e5a;transition:all .15s}
+.tab:hover{background:#f1efe8}
+.tab.active{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:600px){.metrics{grid-template-columns:repeat(2,1fr)}}
+.metric{background:#fff;border:1px solid #e0dfd7;border-radius:8px;padding:12px 14px}
+.metric-category{font-size:10px;color:#b4b2a9;margin-bottom:3px}
+.metric-label{font-size:11px;color:#888780;margin-bottom:2px;line-height:1.4}
+.metric-value{font-size:20px;font-weight:500}
+.metric-sub{font-size:11px;margin-top:3px}
+.up{color:#0f6e56}.down{color:#993c1d}.neutral{color:#888780}
+.chart-card{background:#fff;border:1px solid #e0dfd7;border-radius:12px;padding:16px 20px;margin-bottom:14px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px}
+.chart-title{font-size:13px;font-weight:500;color:#5f5e5a}
+.chart-wrap{position:relative;width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11px;color:#5f5e5a;margin-bottom:10px}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:7px 10px;color:#5f5e5a;border-bottom:1px solid #e0dfd7;font-weight:500;white-space:nowrap;background:#f9f8f5}
+th.num{text-align:right}
+td{padding:6px 10px;border-bottom:1px solid #f1efe8}
+tr:hover td{background:#faf9f6}
+td.num{text-align:right}
+td.hl,th.hl{background:#ddeaf7;color:#185fa5}
+.badge{display:inline-block;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500}
+.badge-up{background:#e1f5ee;color:#0f6e56}
+.badge-down{background:#faece7;color:#993c1d}
+.badge-flat{background:#f1efe8;color:#5f5e5a}
+.tab-content{display:none}
+.tab-content.active{display:block}
+.note{font-size:11px;color:#888780;margin-top:10px;line-height:1.6}
+.change-ctrl{display:flex;align-items:center;gap:6px;font-size:12px;color:#5f5e5a;flex-wrap:wrap}
+.change-ctrl select{font-size:12px;padding:4px 8px}
+.divider{border:none;border-top:1px solid #e0dfd7;margin:8px 0}
+.pref-note{font-size:11px;color:#888780;background:#f9f8f5;border:1px solid #e0dfd7;border-radius:6px;padding:6px 10px;margin-bottom:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>首都圏 公立小中学校 教育人口推計ダッシュボード</h1>
+  <p>東京都（R7〜12年）・埼玉県・千葉県・神奈川県（R7実数＋R8〜13年推計）</p>
+</header>
+<div class="main">
+
+  <!-- 都県切替 -->
+  <div class="pref-bar">
+    <span class="pref-label">都県：</span>
+    <button class="pref-btn active-tokyo" data-pref="tokyo">東京都</button>
+    <button class="pref-btn" data-pref="saitama">埼玉県</button>
+    <button class="pref-btn" data-pref="chiba">千葉県</button>
+    <button class="pref-btn" data-pref="kanagawa">神奈川県</button>
+  </div>
+
+  <div id="prefNote" class="pref-note" style="display:none"></div>
+
+  <div class="controls">
+    <div class="ctrl-group">表示：
+      <select id="schoolType">
+        <option value="es">公立小学校</option>
+        <option value="jh">公立中学校</option>
+        <option value="both">小学校＋中学校（合計）</option>
+      </select>
+    </div>
+    <div class="ctrl-group">地域：<select id="regionFilter"><option value="all">全地区</option></select></div>
+    <div class="ctrl-group">ランキング件数：
+      <select id="topN">
+        <option value="10">上位10</option>
+        <option value="20">上位20</option>
+        <option value="all">全地区</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="metrics" id="metricsArea"></div>
+
+  <div class="tab-bar">
+    <button class="tab active" data-tab="overview">全体推移</button>
+    <button class="tab" data-tab="ranking">地区ランキング</button>
+    <button class="tab" data-tab="change">増減率分析</button>
+    <button class="tab" data-tab="table">データ一覧</button>
+  </div>
+
+  <div id="tab-overview" class="tab-content active">
+    <div class="chart-card">
+      <div class="chart-title" style="margin-bottom:12px" id="overviewTitle">推計人口推移</div>
+      <div class="legend" id="legend-overview"></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="chartOverview"></canvas></div>
+    </div>
+  </div>
+
+  <div id="tab-ranking" class="tab-content">
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="chart-title">地区別 人口ランキング</div>
+        <div class="year-selector" id="yearSelectorRanking"></div>
+      </div>
+      <div class="chart-wrap" id="rankingChartWrap"><canvas id="chartRanking"></canvas></div>
+    </div>
+  </div>
+
+  <div id="tab-change" class="tab-content">
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="chart-title">地区別 増減率（%）　緑＝増加 / 橙＝減少</div>
+        <div class="change-ctrl">
+          基準：<select id="baseYearChange"></select>→比較：<select id="compYearChange"></select>
+        </div>
+      </div>
+      <div class="chart-wrap" id="changeChartWrap"><canvas id="chartChange"></canvas></div>
+    </div>
+  </div>
+
+  <div id="tab-table" class="tab-content">
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="chart-title">地区別 年度別推計データ一覧</div>
+        <div class="year-selector" id="yearSelectorTable"></div>
+      </div>
+      <div class="table-wrap"><table id="dataTable"></table></div>
+      <p class="note" id="tableNote"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== データ定義 ==========
+
+const PREFS = {
+  tokyo: {
+    name: '東京都',
+    color: '#185FA5',
+    source: '東京都教育委員会',
+    years: ['R7(2025)','R8(2026)','R9(2027)','R10(2028)','R11(2029)','R12(2030)'],
+    baseLabel: 'R7(2025)', compLabel: 'R12(2030)',
+    note: 'R7(2025)は令和7年度実数（5月1日現在）。R8〜R12は推計値。出典：東京都教育委員会「区市町村立学校の児童・生徒数の推計について（令和7〜12年度）」',
+    regions: {all:'全地区', ku:'区部のみ', shi:'市部のみ'},
+    kuList: ['千代田区','中央区','港区','新宿区','文京区','台東区','墨田区','江東区','品川区','目黒区','大田区','世田谷区','渋谷区','中野区','杉並区','豊島区','北区','荒川区','板橋区','練馬区','足立区','葛飾区','江戸川区'],
+    shiList: ['八王子市','立川市','武蔵野市','三鷹市','青梅市','府中市','昭島市','調布市','町田市','小金井市','小平市','日野市','東村山市','国分寺市','国立市','福生市','狛江市','東大和市','清瀬市','東久留米市','武蔵村山市','多摩市','稲城市','羽村市','あきる野市','西東京市'],
+    es: {
+      '全都':[593428,583688,566411,549060,530067,510303],
+      '区部':[393303,386948,375558,364225,351805,338585],
+      '市町村部':[200125,196740,190853,184835,178262,171718],
+      '千代田区':[3278,3216,3059,2995,2830,2700],'中央区':[9618,9939,10092,10451,10565,10641],'港区':[10946,10912,10872,10635,10714,10481],'新宿区':[10065,9967,9701,9343,8834,8320],'文京区':[11385,11565,11358,11031,10655,10384],'台東区':[6902,6722,6458,6288,6047,5846],'墨田区':[10502,10398,10184,9803,9484,9117],'江東区':[25291,24634,23759,22978,21962,20917],'品川区':[18041,17886,17576,17029,16554,15960],'目黒区':[10142,10009,9668,9393,9083,8847],'大田区':[29021,28266,27282,26320,25442,24315],'世田谷区':[37503,36519,35074,33790,32502,31217],'渋谷区':[7539,7390,7146,6844,6474,6122],'中野区':[11041,10991,10698,10466,10178,9807],'杉並区':[22620,22434,21935,21279,20625,19804],'豊島区':[9339,9182,8979,8762,8501,8184],'北区':[14477,14589,14358,13912,13433,12926],'荒川区':[8924,8772,8495,8170,7979,7700],'板橋区':[23263,22653,21820,20905,19943,19023],'練馬区':[33426,32998,32109,31505,30591,29934],'足立区':[28678,28020,27045,26224,25356,24274],'葛飾区':[20076,19718,19062,18479,17934,17243],'江戸川区':[31226,30168,28828,27623,26119,24823],
+      '八王子市':[23837,23239,22351,21551,20633,19823],'立川市':[8821,8718,8566,8349,8057,7787],'武蔵野市':[6482,6235,5996,5769,5541,5348],'三鷹市':[9373,8978,8544,8200,7804,7364],'青梅市':[5008,5177,5023,4888,4596,4385],'府中市':[12740,12175,11639,11113,10690,10186],'昭島市':[5592,5552,5474,5381,5329,5263],'調布市':[11590,11246,10809,10516,10083,9611],'町田市':[19991,19828,19457,18930,18535,18015],'小金井市':[6313,6170,6002,5824,5597,5436],'小平市':[10198,9970,9591,9329,8999,8656],'日野市':[9253,9017,8719,8430,8076,7873],'東村山市':[6767,6817,6666,6566,6473,6284],'国分寺市':[6436,6476,6466,6386,6271,6104],'国立市':[3274,3309,3228,3152,3017,2887],'福生市':[2141,2129,2077,1993,1925,1896],'狛江市':[3931,3875,3767,3712,3576,3420],'東大和市':[4184,4125,4027,3876,3795,3713],'清瀬市':[3495,3451,3406,3278,3165,3078],'東久留米市':[5689,5638,5501,5310,5085,4939],'武蔵村山市':[3613,3540,3425,3284,3135,2953],'多摩市':[6385,6345,6121,5946,5668,5407],'稲城市':[5422,5325,5147,4893,4705,4504],'羽村市':[2401,2408,2348,2254,2182,2119],'あきる野市':[3652,3622,3494,3424,3306,3149],'西東京市':[10021,10039,9845,9497,9184,8860],'瑞穂町':[1390, 1328, 1292, 1243, 1188, 1135],'日の出町':[873, 800, 713, 635, 583, 521],'檜原村':[57, 56, 53, 48, 49, 45],'奥多摩町':[135, 135, 125, 122, 115, 111],'大島町':[262, 241, 235, 216, 199, 175],'利島村':[19, 20, 14, 13, 11, 11],'新島村':[96, 93, 87, 87, 93, 90],'神津島村':[109, 95, 95, 97, 104, 94],'三宅村':[100, 105, 102, 94, 97, 93],'御蔵島村':[24, 25, 23, 22, 18, 13],'八丈町':[317, 306, 300, 285, 267, 262],'青ヶ島村':[5, 6, 5, 7, 6, 6],'小笠原村':[129, 126, 120, 115, 105, 102]
+    },
+    jh: {
+      '全都':[233981,234359,237609,240282,239900,235567],
+      '区部':[141722,142695,145419,147578,147586,145112],
+      '市町村部':[92259,91664,92190,92704,92314,90455],
+      '千代田区':[1122,1087,1170,1173,1189,1128],'中央区':[1945,2133,2387,2611,2733,2793],'港区':[2409,2455,2686,2766,3043,3070],'新宿区':[2901,2947,3070,3140,3188,3183],'文京区':[2890,3024,3174,3360,3508,3485],'台東区':[2936,2883,2862,2882,2819,2777],'墨田区':[4485,4519,4601,4731,4807,4821],'江東区':[8288,8260,8340,8398,8383,8203],'品川区':[5268,5518,5719,5954,5934,5898],'目黒区':[3268,3242,3313,3360,3325,3183],'大田区':[10985,11012,11181,11296,11143,10857],'世田谷区':[11715,11752,12016,12172,12107,11739],'渋谷区':[1996,2113,2192,2298,2328,2316],'中野区':[4202,4236,4387,4504,4589,4558],'杉並区':[6925,7029,7152,7365,7422,7378],'豊島区':[2809,2880,3016,3095,3092,3048],'北区':[4773,4925,5161,5353,5460,5514],'荒川区':[3308,3392,3377,3514,3467,3397],'板橋区':[9369,9468,9583,9693,9605,9429],'練馬区':[13701,13624,13970,14130,14142,13867],'足立区':[13335,13201,13094,12952,12752,12475],'葛飾区':[8663,8781,8853,8943,8882,8737],'江戸川区':[14429,14214,14115,13888,13668,13256],
+      '八王子市':[12875,12647,12509,12335,12155,11762],'立川市':[4273,4206,4240,4319,4354,4351],'武蔵野市':[2511,2471,2526,2583,2584,2485],'三鷹市':[3978,3923,3974,4009,3978,3830],'青梅市':[2732,2857,2903,2883,2976,2930],'府中市':[5867,5747,5764,5729,5539,5398],'昭島市':[2595,2666,2735,2733,2762,2698],'調布市':[4445,4467,4603,4614,4596,4486],'町田市':[9769,9499,9491,9520,9448,9314],'小金井市':[2311,2314,2396,2465,2499,2469],'小平市':[4434,4413,4421,4450,4437,4317],'日野市':[4296,4288,4298,4347,4345,4213],'東村山市':[3415,3267,3171,3181,3147,3131],'国分寺市':[2405,2474,2545,2659,2741,2797],'国立市':[1303,1333,1404,1419,1456,1437],'福生市':[1051,1038,1010,1060,1046,1005],'狛江市':[1424,1507,1557,1572,1613,1591],'東大和市':[2052,2008,2013,2007,1994,1963],'清瀬市':[1680,1728,1726,1781,1778,1795],'東久留米市':[2531,2514,2590,2626,2623,2571],'武蔵村山市':[1844,1857,1824,1825,1790,1754],'多摩市':[2921,3039,3100,3093,3023,2958],'稲城市':[2219,2155,2214,2274,2298,2271],'羽村市':[1288,1284,1238,1224,1193,1165],'あきる野市':[1975,1940,1912,1885,1829,1807],'西東京市':[4234,4209,4244,4366,4440,4396],'瑞穂町':[729, 705, 695, 693, 672, 642],'日の出町':[499, 510, 499, 477, 441, 397],'檜原村':[29, 30, 29, 27, 26, 28],'奥多摩町':[72, 63, 69, 54, 58, 55],'大島町':[137, 134, 115, 113, 104, 108],'利島村':[6, 8, 12, 13, 11, 5],'新島村':[55, 59, 53, 50, 49, 43],'神津島村':[48, 57, 51, 53, 45, 42],'三宅村':[38, 37, 40, 46, 44, 45],'御蔵島村':[11, 9, 12, 10, 12, 14],'八丈町':[133, 135, 143, 152, 155, 136],'青ヶ島村':[4, 4, 5, 2, 3, 3],'小笠原村':[70, 62, 59, 55, 50, 43]
+    }
+  },
+  saitama: {
+    name: '埼玉県',
+    color: '#C94040',
+    source: '埼玉県教育委員会',
+    years: ['R7(2025)★','R8(2026)','R9(2027)','R10(2028)','R11(2029)','R12(2030)','R13(2031)'],
+    baseLabel: 'R7(2025)', compLabel: 'R13(2031)',
+    note: '★R7(2025)は令和7年度実数（5月1日現在）。R8〜R13は推計値。出典：埼玉県教育委員会「市町村立小・中学校等児童生徒数推計 結果報告書（令和8〜13年度）」',
+    regions: {all:'全市町村', ku:'市のみ', shi:'町村のみ'},
+    kuList: ['さいたま市','川口市','鴻巣市','上尾市','草加市','蕨市','戸田市','朝霞市','志木市','和光市','新座市','桶川市','北本市','川越市','所沢市','飯能市','東松山市','狭山市','入間市','富士見市','坂戸市','鶴ヶ島市','日高市','ふじみ野市','熊谷市','秩父市','本庄市','深谷市','行田市','加須市','春日部市','羽生市','越谷市','久喜市','八潮市','三郷市','蓮田市','幸手市','吉川市','白岡市'],
+    shiList: ['伊奈町','三芳町','毛呂山町','越生町','滑川町','嵐山町','小川町','川島町','吉見町','鳩山町','ときがわ町','東秩父村','横瀬町','皆野町','長瀞町','小鹿野町','美里町','神川町','上里町','寄居町','宮代町','杉戸町','松伏町'],
+    es: {
+      '県計':[342582,334595,325921,315163,304724,294485,284460],
+      'さいたま市':[68557,68170,67607,66378,65450,64280,62939],'川口市':[28152,27388,26449,25309,24181,23209,22330],'鴻巣市':[5241,5085,4968,4837,4750,4584,4497],'上尾市':[10705,10558,10360,10237,10092,9974,9833],'草加市':[11002,10601,10251,9951,9681,9429,9148],'蕨市':[3168,3127,3047,2871,2711,2606,2531],'戸田市':[7664,7399,7119,6694,6355,6061,5775],'朝霞市':[7703,7696,7522,7350,7199,6981,6748],'志木市':[4086,3935,3757,3585,3361,3170,2994],'和光市':[4257,4134,3980,3806,3605,3412,3260],'新座市':[8288,7998,7737,7456,7145,6971,6674],'桶川市':[3364,3286,3172,3131,3033,2959,2892],'北本市':[2524,2542,2528,2509,2453,2427,2357],'伊奈町':[2217,2125,2020,1933,1869,1795,1697],'川越市':[16490,16009,15550,15023,14594,14028,13467],'所沢市':[15174,14657,14228,13732,13192,12663,12280],'飯能市':[3486,3418,3379,3208,3148,3021,2886],'東松山市':[4355,4270,4149,4038,3882,3756,3676],'狭山市':[5959,5862,5745,5657,5514,5361,5207],'入間市':[6246,6041,5795,5466,5214,4893,4576],'富士見市':[5493,5369,5270,5120,4984,4905,4862],'坂戸市':[4307,4131,3960,3739,3521,3379,3182],'鶴ヶ島市':[2935,2837,2754,2689,2586,2503,2402],'日高市':[2215,2093,1998,1915,1806,1732,1668],'ふじみ野市':[5772,5558,5353,5061,4840,4666,4491],'三芳町':[1738,1707,1638,1549,1459,1420,1380],'毛呂山町':[1012,920,860,780,717,679,656],'越生町':[320,301,300,281,263,249,243],'滑川町':[1291,1292,1277,1196,1125,1065,997],'嵐山町':[654,626,579,537,499,466,428],'小川町':[822,766,733,678,634,602,586],'川島町':[651,629,568,535,518,478,439],'吉見町':[568,549,523,513,480,460,447],'鳩山町':[396,374,373,358,328,301,277],'ときがわ町':[339,328,313,297,276,253,250],'東秩父村':[57,55,49,47,41,39,36],'熊谷市':[8351,8099,7790,7470,7043,6679,6449],'秩父市':[2429,2321,2199,2075,1955,1850,1723],'本庄市':[3462,3371,3256,3170,3047,2855,2756],'深谷市':[6437,6281,6172,5985,5739,5545,5297],'横瀬町':[307,309,307,304,286,273,248],'皆野町':[343,319,314,295,271,243,209],'長瀞町':[226,199,176,164,144,133,123],'小鹿野町':[303,268,241,211,193,170,154],'美里町':[459,428,410,390,379,371,360],'神川町':[479,446,416,375,337,304,289],'上里町':[1326,1306,1279,1232,1212,1176,1148],'寄居町':[1201,1136,1107,1044,979,949,896],'行田市':[3138,2995,2851,2694,2639,2574,2451],'加須市':[4820,4728,4603,4498,4317,4185,4111],'春日部市':[9349,8997,8770,8416,8109,7848,7482],'羽生市':[2296,2260,2223,2189,2125,2057,1968],'越谷市':[16949,16568,15963,15373,14783,14040,13329],'久喜市':[6619,6511,6457,6288,6131,5955,5766],'八潮市':[4267,4244,4203,4106,4010,3865,3702],'三郷市':[7341,7213,6999,6692,6363,6024,5700],'蓮田市':[2584,2510,2485,2425,2369,2272,2255],'幸手市':[1791,1748,1661,1573,1533,1502,1474],'吉川市':[3896,3721,3602,3423,3232,3025,2830],'白岡市':[2622,2517,2434,2359,2290,2197,2104],'宮代町':[1534,1514,1481,1428,1339,1287,1256],'杉戸町':[1718,1668,1582,1541,1474,1444,1405],'松伏町':[1127,1082,1029,977,919,885,864]
+    },
+    jh: {
+      '県計':[170335,168417,167819,167414,164807,161209,156121],
+      'さいたま市':[31876,31850,31996,32391,32258,32127,31686],'川口市':[13538,13465,13429,13387,13195,12840,12388],'鴻巣市':[2672,2667,2668,2660,2576,2540,2442],'上尾市':[5218,5223,5288,5312,5262,5114,5010],'草加市':[5563,5545,5522,5415,5181,5025,4876],'蕨市':[1451,1469,1499,1536,1545,1515,1421],'戸田市':[3696,3644,3693,3667,3538,3381,3196],'朝霞市':[3453,3446,3578,3595,3612,3500,3442],'志木市':[1802,1846,1878,1900,1886,1822,1777],'和光市':[1895,1916,1892,1900,1845,1795,1728],'新座市':[4153,4148,4073,4032,3926,3791,3680],'桶川市':[1748,1759,1756,1693,1658,1570,1556],'北本市':[1312,1267,1272,1234,1264,1220,1222],'伊奈町':[1239,1209,1175,1129,1079,1043,999],'川越市':[8610,8476,8410,8259,8018,7871,7624],'所沢市':[7356,7302,7173,7208,7090,6947,6610],'飯能市':[1658,1624,1619,1724,1662,1688,1611],'東松山市':[2154,2145,2163,2190,2187,2158,2095],'狭山市':[3208,3067,3037,2968,2962,2913,2847],'入間市':[3302,3188,3155,3130,3017,2950,2800],'富士見市':[2711,2700,2707,2655,2634,2584,2484],'坂戸市':[2457,2391,2300,2246,2202,2061,1946],'鶴ヶ島市':[1497,1484,1484,1477,1415,1389,1358],'日高市':[1328,1278,1201,1157,1104,1049,1001],'ふじみ野市':[2938,2952,2968,2942,2850,2716,2576],'三芳町':[946,880,865,876,878,820,776],'毛呂山町':[606,598,569,568,530,497,428],'越生町':[216,212,187,168,150,154,144],'滑川町':[586,592,586,635,663,674,639],'嵐山町':[330,321,335,356,353,325,281],'小川町':[484,458,430,442,422,400,352],'川島町':[374,352,377,355,327,284,288],'吉見町':[328,319,312,302,296,285,265],'鳩山町':[202,205,201,206,200,214,200],'ときがわ町':[204,197,176,179,181,183,161],'東秩父村':[37,28,34,28,29,23,26],'熊谷市':[4324,4217,4242,4239,4221,4052,3843],'秩父市':[1331,1308,1321,1271,1230,1152,1087],'本庄市':[1817,1756,1716,1695,1645,1667,1620],'深谷市':[3432,3394,3286,3206,3183,3145,3064],'横瀬町':[172,163,149,145,149,149,152],'皆野町':[211,204,181,176,167,168,167],'長瀞町':[137,136,136,131,118,99,89],'小鹿野町':[226,205,179,174,151,139,123],'美里町':[248,256,237,234,226,221,213],'神川町':[282,267,257,249,240,236,201],'上里町':[730,682,664,675,658,641,610],'寄居町':[648,638,618,623,610,587,555],'行田市':[1729,1720,1630,1642,1555,1486,1412],'加須市':[2656,2475,2402,2405,2450,2400,2324],'春日部市':[5104,4974,4833,4841,4691,4576,4393],'羽生市':[1178,1132,1141,1126,1137,1129,1146],'越谷市':[8293,8147,8192,8157,8131,7979,7760],'久喜市':[3316,3258,3253,3265,3228,3191,3131],'八潮市':[2058,1989,2000,1990,1999,2006,2010],'三郷市':[3256,3289,3402,3474,3446,3391,3276],'蓮田市':[1345,1352,1343,1292,1277,1308,1272],'幸手市':[1081,986,979,961,916,838,767],'吉川市':[2010,2024,2004,1948,1845,1799,1744],'白岡市':[1249,1309,1333,1326,1260,1229,1199],'宮代町':[725,732,738,758,776,759,705],'杉戸町':[960,928,939,880,883,816,798],'松伏町':[669,653,636,609,620,578,525]
+    }
+  }
+,
+  chiba: {
+    name: '千葉県',
+    color: '#2A7A3B',
+    source: '千葉県（2025年1月1日現在 年齢別・市区町村別人口）',
+    years: ['R7(2025)★','R8(2026)','R9(2027)','R10(2028)','R11(2029)','R12(2030)','R13(2031)'],
+    baseLabel: 'R7(2025)', compLabel: 'R13(2031)',
+    note: '★R7(2025)は2025年1月1日現在の実数（6〜14歳人口）。R8〜R13は学年進行法による推計値。出典：千葉県「年齢（各歳）別・市区町村別人口（2025年）」',
+    regions: {all:'全市町村', ku:'市のみ', shi:'町村のみ'},
+    kuList: ['千葉市','銚子市','市川市','船橋市','館山市','木更津市','松戸市','野田市','茂原市','成田市','佐倉市','東金市','旭市','習志野市','柏市','勝浦市','市原市','流山市','八千代市','我孫子市','鴨川市','鎌ケ谷市','君津市','富津市','浦安市','四街道市','袖ケ浦市','八街市','印西市','白井市','富里市','南房総市','匝瑳市','香取市','山武市','いすみ市','大網白里市'],
+    shiList: ['酒々井町','栄町','神崎町','多古町','東庄町','九十九里町','芝山町','横芝光町','一宮町','睦沢町','長生村','白子町','長柄町','長南町','大多喜町','御宿町','鋸南町'],
+    es: {'県計':[295931, 289090, 280158, 270992, 261141, 251288, 240004], '千葉市':[44788, 43568, 42175, 40810, 39574, 38367, 36809], '銚子市':[1504, 1410, 1281, 1188, 1072, 995, 892], '市川市':[22845, 22652, 22190, 21835, 21390, 20945, 20537], '船橋市':[32057, 31240, 30151, 29056, 27928, 27099, 25987], '館山市':[1498, 1414, 1336, 1276, 1222, 1184, 1142], '木更津市':[7007, 6777, 6583, 6389, 6247, 6032, 5788], '松戸市':[22611, 22245, 21757, 21168, 20581, 19913, 19235], '野田市':[6850, 6594, 6427, 6220, 5951, 5665, 5390], '茂原市':[3335, 3187, 3087, 2898, 2773, 2618, 2517], '成田市':[6318, 6052, 5764, 5481, 5266, 5014, 4800], '佐倉市':[7384, 6958, 6581, 6228, 5903, 5473, 5129], '東金市':[2315, 2202, 2066, 1964, 1869, 1738, 1668], '旭市':[2676, 2608, 2474, 2412, 2275, 2173, 2093], '習志野市':[8913, 8736, 8403, 7988, 7676, 7394, 7079], '柏市':[22754, 22693, 22282, 21812, 21251, 20531, 19575], '勝浦市':[402, 391, 359, 331, 297, 271, 248], '市原市':[11707, 11264, 10835, 10381, 9822, 9365, 8831], '流山市':[14722, 15110, 15077, 14918, 14594, 14212, 13585], '八千代市':[10278, 10200, 9967, 9803, 9531, 9359, 9074], '我孫子市':[5450, 5270, 5152, 4965, 4777, 4574, 4425], '鴨川市':[1027, 987, 948, 932, 873, 846, 797], '鎌ケ谷市':[4874, 4682, 4491, 4375, 4243, 4139, 4008], '君津市':[3284, 3160, 3009, 2883, 2768, 2630, 2503], '富津市':[1388, 1289, 1212, 1112, 1036, 950, 899], '浦安市':[8356, 8165, 7877, 7631, 7374, 6971, 6577], '四街道市':[5379, 5326, 5233, 5072, 4855, 4697, 4439], '袖ケ浦市':[3910, 3846, 3867, 3743, 3641, 3462, 3246], '八街市':[2318, 2257, 2129, 2050, 1921, 1831, 1730], '印西市':[8145, 8215, 8108, 7977, 7654, 7240, 6650], '白井市':[3189, 2984, 2770, 2596, 2326, 2152, 1914], '富里市':[2029, 1956, 1828, 1762, 1688, 1627, 1525], '南房総市':[1105, 1010, 911, 821, 744, 694, 632], '匝瑳市':[1303, 1207, 1117, 997, 934, 858, 787], '香取市':[2448, 2329, 2235, 2083, 1931, 1805, 1704], '山武市':[1664, 1565, 1494, 1402, 1310, 1237, 1134], 'いすみ市':[1259, 1185, 1108, 1027, 942, 857, 755], '大網白里市':[1991, 1924, 1796, 1717, 1592, 1490, 1357], '酒々井町':[726, 706, 675, 631, 594, 579, 563], '栄町':[655, 597, 563, 546, 522, 491, 467], '神崎町':[214, 202, 192, 182, 184, 178, 158], '多古町':[491, 463, 451, 422, 410, 375, 354], '東庄町':[465, 433, 412, 380, 336, 318, 283], '九十九里町':[385, 362, 332, 296, 264, 236, 217], '芝山町':[224, 218, 206, 192, 176, 168, 161], '横芝光町':[896, 846, 804, 773, 719, 663, 628], '一宮町':[638, 588, 572, 547, 511, 459, 420], '睦沢町':[272, 263, 249, 246, 229, 213, 187], '長生村':[479, 453, 412, 380, 348, 318, 302], '白子町':[373, 341, 308, 274, 268, 237, 214], '長柄町':[176, 172, 172, 169, 148, 132, 130], '長南町':[239, 214, 199, 180, 165, 145, 129], '大多喜町':[281, 250, 228, 197, 189, 162, 141], '御宿町':[167, 162, 147, 126, 109, 103, 86], '鋸南町':[167, 162, 156, 148, 138, 103, 103]},
+    jh: {'県計':[157374, 164492, 158065, 152538, 150420, 146791, 142075], '千葉市':[24436, 26239, 24544, 23324, 22718, 22113, 21264], '銚子市':[1021, 1038, 957, 817, 796, 717, 681], '市川市':[11286, 11925, 11779, 11552, 11652, 11331, 11191], '船橋市':[17434, 17698, 17118, 16663, 16372, 15809, 15252], '館山市':[973, 896, 859, 819, 767, 721, 673], '木更津市':[3756, 3781, 3713, 3624, 3513, 3453, 3352], '松戸市':[11756, 12402, 11827, 11493, 11377, 11273, 11017], '野田市':[3778, 4217, 3883, 3538, 3425, 3406, 3281], '茂原市':[1982, 1956, 1829, 1777, 1697, 1693, 1544], '成田市':[3723, 4020, 3668, 3361, 3191, 3118, 2929], '佐倉市':[4142, 4397, 4240, 3985, 3735, 3611, 3367], '東金市':[1349, 1445, 1360, 1266, 1202, 1134, 1039], '旭市':[1521, 1509, 1465, 1395, 1396, 1332, 1269], '習志野市':[4674, 5262, 4901, 4665, 4602, 4447, 4209], '柏市':[11427, 11418, 11322, 11412, 11503, 11458, 11240], '勝浦市':[241, 379, 303, 205, 230, 211, 195], '市原市':[6510, 7016, 6597, 6074, 5970, 5760, 5581], '流山市':[6265, 5610, 6339, 7129, 7473, 7541, 7527], '八千代市':[5339, 5611, 5470, 5218, 5293, 5095, 5014], '我孫子市':[3127, 3491, 3128, 2851, 2762, 2721, 2574], '鴨川市':[608, 654, 589, 517, 520, 491, 505], '鎌ケ谷市':[2740, 2879, 2737, 2579, 2459, 2341, 2273], '君津市':[1764, 2030, 1862, 1724, 1692, 1627, 1546], '富津市':[821, 906, 836, 773, 712, 670, 609], '浦安市':[4312, 5113, 4644, 4261, 4210, 4158, 4058], '四街道市':[2732, 2648, 2729, 2766, 2746, 2681, 2589], '袖ケ浦市':[1794, 1773, 1840, 1889, 1905, 1966, 2003], '八街市':[1425, 1515, 1373, 1224, 1207, 1121, 1083], '印西市':[3615, 3310, 3608, 3899, 4052, 4128, 4209], '白井市':[1964, 2068, 1853, 1686, 1649, 1532, 1489], '富里市':[1174, 1299, 1153, 1039, 1008, 986, 981], '南房総市':[675, 664, 660, 632, 597, 529, 468], '匝瑳市':[760, 808, 769, 746, 694, 638, 552], '香取市':[1489, 1554, 1420, 1315, 1267, 1213, 1122], '山武市':[935, 1017, 961, 905, 856, 811, 751], 'いすみ市':[739, 696, 704, 661, 633, 617, 592], '大網白里市':[1109, 1100, 1105, 1060, 1038, 961, 922], '酒々井町':[425, 552, 448, 387, 378, 370, 336], '栄町':[356, 392, 371, 359, 328, 308, 293], '神崎町':[105, 119, 117, 107, 93, 99, 106], '多古町':[273, 283, 268, 262, 239, 250, 227], '東庄町':[260, 278, 279, 252, 245, 224, 211], '九十九里町':[251, 274, 247, 222, 203, 186, 161], '芝山町':[140, 137, 125, 124, 131, 119, 99], '横芝光町':[510, 520, 514, 472, 458, 446, 420], '一宮町':[357, 332, 326, 337, 313, 314, 298], '睦沢町':[164, 135, 147, 144, 135, 126, 127], '長生村':[281, 316, 280, 264, 261, 231, 213], '白子町':[217, 216, 222, 205, 188, 175, 166], '長柄町':[102, 107, 99, 90, 91, 99, 85], '長南町':[101, 139, 146, 136, 122, 112, 102], '大多喜町':[208, 162, 152, 165, 144, 136, 115], '御宿町':[114, 96, 90, 92, 92, 87, 75], '鋸南町':[114, 90, 89, 76, 80, 95, 90]}
+  },
+  kanagawa: {
+    name: '神奈川県',
+    color: '#7A3B8A',
+    source: '神奈川県（2025年1月1日現在 年齢別・市区町村別人口）',
+    years: ['R7(2025)★','R8(2026)','R9(2027)','R10(2028)','R11(2029)','R12(2030)','R13(2031)'],
+    baseLabel: 'R7(2025)', compLabel: 'R13(2031)',
+    note: '★R7(2025)は2025年1月1日現在の実数（6〜14歳人口）。R8〜R13は学年進行法による推計値。横浜市・川崎市・相模原市は区データを合算。出典：神奈川県「年齢(各歳・5歳階級)別、男女別人口（令和7年）」',
+    regions: {all:'全市町村', ku:'市のみ', shi:'町村のみ'},
+    kuList: ['横浜市', '川崎市', '相模原市', '横須賀市', '鎌倉市', '逗子市', '三浦市', '厚木市', '大和市', '海老名市', '座間市', '綾瀬市', '平塚市', '藤沢市', '茅ヶ崎市', '秦野市', '伊勢原市', '小田原市', '南足柄市'],
+    shiList: ['葉山町', '愛川町', '清川村', '寒川町', '大磯町', '二宮町', '中井町', '大井町', '松田町', '山北町', '開成町', '箱根町', '真鶴町', '湯河原町'],
+    es: {'横浜市':[172182, 167826, 162782, 158030, 153291, 148800, 143958], '川崎市':[73004, 71882, 70341, 68663, 67096, 65913, 64922], '相模原市':[31696, 30757, 29817, 29039, 28167, 27280, 26277], '横須賀市':[15067, 14468, 13780, 13122, 12549, 11988, 11328], '鎌倉市':[7733, 7453, 7162, 6833, 6435, 6139, 5769], '逗子市':[2551, 2441, 2322, 2204, 2141, 2058, 1893], '三浦市':[1316, 1274, 1203, 1136, 1069, 997, 915], '葉山町':[1679, 1561, 1472, 1315, 1193, 1083, 975], '厚木市':[9883, 9506, 9251, 8884, 8578, 8319, 7980], '大和市':[11558, 11567, 11332, 11252, 11206, 11050, 10989], '海老名市':[7150, 7135, 7097, 7033, 6996, 6891, 6702], '座間市':[5816, 5665, 5530, 5418, 5260, 5088, 4849], '綾瀬市':[4150, 3959, 3759, 3668, 3528, 3418, 3270], '愛川町':[1588, 1520, 1483, 1382, 1300, 1246, 1179], '清川村':[104, 103, 99, 90, 81, 70, 59], '平塚市':[11415, 11072, 10728, 10282, 9932, 9559, 9193], '藤沢市':[23150, 22659, 22146, 21491, 20644, 19996, 19114], '茅ヶ崎市':[12682, 12295, 11945, 11589, 11170, 10707, 10173], '秦野市':[6710, 6338, 6057, 5714, 5410, 5133, 4878], '伊勢原市':[4485, 4380, 4288, 4141, 4036, 3878, 3765], '寒川町':[2538, 2495, 2411, 2302, 2206, 2137, 2051], '大磯町':[1450, 1406, 1335, 1267, 1202, 1095, 973], '二宮町':[1139, 1079, 1045, 983, 910, 844, 760], '小田原市':[7889, 7698, 7445, 7198, 6986, 6704, 6392], '南足柄市':[1647, 1556, 1457, 1346, 1248, 1146, 1045], '中井町':[285, 282, 268, 246, 240, 228, 214], '大井町':[752, 771, 756, 773, 742, 744, 699], '松田町':[411, 416, 398, 381, 355, 340, 304], '山北町':[330, 300, 268, 243, 226, 207, 180], '開成町':[1150, 1098, 1069, 1028, 1009, 950, 893], '箱根町':[222, 217, 219, 192, 180, 188, 185], '真鶴町':[187, 172, 152, 137, 133, 121, 100], '湯河原町':[565, 533, 488, 467, 434, 427, 408], '県計':[422484, 411884, 399905, 387849, 375953, 364744, 352392]},
+    jh: {'横浜市':[92705, 95395, 91823, 88907, 87293, 85155, 82511], '川崎市':[37358, 38136, 37143, 37165, 36938, 36484, 35513], '相模原市':[17282, 18449, 17337, 16516, 16083, 15506, 15039], '横須賀市':[8692, 10362, 9363, 8013, 7743, 7355, 6988], '鎌倉市':[4416, 4391, 4189, 4021, 3971, 3850, 3678], '逗子市':[1392, 1423, 1394, 1375, 1294, 1237, 1165], '三浦市':[753, 828, 739, 669, 666, 639, 641], '葉山町':[931, 829, 857, 911, 877, 862, 760], '厚木市':[5668, 6009, 5524, 5185, 5004, 4868, 4654], '大和市':[5958, 6091, 5963, 5879, 5812, 5763, 5627], '海老名市':[3636, 3746, 3655, 3566, 3555, 3520, 3552], '座間市':[3159, 3274, 3107, 2958, 2884, 2875, 2832], '綾瀬市':[2404, 2394, 2328, 2228, 2130, 2016, 1904], '愛川町':[912, 1002, 917, 842, 820, 806, 739], '清川村':[56, 57, 54, 51, 54, 57, 53], '平塚市':[6148, 6885, 6440, 5924, 5808, 5673, 5440], '藤沢市':[12001, 12115, 11915, 11787, 11756, 11513, 11260], '茅ヶ崎市':[6788, 6709, 6562, 6480, 6358, 6254, 6146], '秦野市':[3951, 4481, 4051, 3656, 3470, 3286, 3025], '伊勢原市':[2395, 2607, 2426, 2316, 2268, 2210, 2149], '寒川町':[1320, 1341, 1333, 1300, 1305, 1269, 1227], '大磯町':[838, 815, 765, 729, 722, 732, 715], '二宮町':[616, 678, 638, 578, 576, 568, 556], '小田原市':[4539, 4469, 4361, 4120, 4008, 3877, 3735], '南足柄市':[1042, 1048, 973, 910, 842, 807, 730], '中井町':[178, 209, 172, 149, 151, 147, 135], '大井町':[452, 476, 435, 352, 388, 378, 397], '松田町':[223, 214, 187, 187, 213, 220, 222], '山北町':[185, 217, 213, 195, 162, 150, 133], '開成町':[570, 584, 578, 600, 568, 577, 545], '箱根町':[142, 225, 157, 117, 112, 112, 104], '真鶴町':[93, 88, 105, 103, 99, 82, 83], '湯河原町':[426, 398, 362, 312, 293, 271, 250], '県計':[227229, 235945, 226066, 218101, 214223, 209119, 202508]}
+  }
+};
+
+// ========== 状態管理 ==========
+let currentPref = 'tokyo';
+let selYearRanking = 0;
+let selYearTable = 0;
+let charts = {};
+
+function P() { return PREFS[currentPref]; }
+
+function getYears() { return P().years; }
+
+function getTotalKey() { return currentPref === 'tokyo' ? '全都' : '県計'; }
+
+function getData(type) {
+  const p = P();
+  if(type==='es') return p.es;
+  if(type==='jh') return p.jh;
+  const combined = {};
+  for(const k of Object.keys(p.es)) {
+    if(p.jh[k]) combined[k] = p.es[k].map((v,i)=>v+p.jh[k][i]);
+  }
+  return combined;
+}
+
+function getRegionOptions() { return P().regions; }
+
+function getDistrictData(type, region) {
+  const data = getData(type);
+  const p = P();
+  const excludeKeys = [getTotalKey(), '区部', '市町村部'];
+  let keys = Object.keys(data).filter(k=>!excludeKeys.includes(k));
+  if(region==='ku') keys = keys.filter(k=>p.kuList.includes(k));
+  if(region==='shi') keys = keys.filter(k=>p.shiList.includes(k));
+  return {keys, data};
+}
+
+function pct(a,b){ return ((b-a)/a*100).toFixed(1); }
+function fmt(n){ return Math.round(n).toLocaleString('ja-JP'); }
+
+// ========== UI 初期化 ==========
+
+function initPrefUI() {
+  const p = P();
+  // pref note
+  const noteEl = document.getElementById('prefNote');
+  if(p.note){ noteEl.style.display=''; noteEl.textContent=p.note; }
+  else { noteEl.style.display='none'; noteEl.textContent=''; }
+
+  // region selector
+  const regionSel = document.getElementById('regionFilter');
+  regionSel.innerHTML = Object.entries(p.regions).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+
+  // year selectors
+  buildYearSelector('yearSelectorRanking', 0, idx=>{ selYearRanking=idx; renderRanking(); });
+  buildYearSelector('yearSelectorTable', 0, idx=>{ selYearTable=idx; renderTable(); });
+
+  // change year selectors
+  const baseEl = document.getElementById('baseYearChange');
+  const compEl = document.getElementById('compYearChange');
+  const yrs = getYears();
+  baseEl.innerHTML = yrs.slice(0,-1).map((y,i)=>`<option value="${i}">${y}</option>`).join('');
+  compEl.innerHTML = yrs.slice(1).map((y,i)=>`<option value="${i+1}"${i===yrs.length-2?' selected':''}>${y}</option>`).join('');
+
+  // title
+  document.getElementById('overviewTitle').textContent = `${p.name}　推計人口推移（${yrs[0]}〜${yrs[yrs.length-1]}）`;
+  document.getElementById('tableNote').textContent = `※ハイライト列が選択中の年度　／　増減率は${p.baseLabel}→${p.compLabel}比較　／　出典：${p.source}`;
+
+  selYearRanking = 0;
+  selYearTable = 0;
+}
+
+function buildYearSelector(id, sel, cb){
+  const el = document.getElementById(id);
+  const yrs = getYears();
+  el.innerHTML = yrs.map((y,i)=>`<button class="year-btn${i===sel?' active':''}" data-i="${i}">${y}</button>`).join('');
+  el.querySelectorAll('.year-btn').forEach(b=>b.addEventListener('click',()=>{
+    el.querySelectorAll('.year-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    cb(+b.dataset.i);
+  }));
+}
+
+// ========== メトリクス ==========
+
+function updateMetrics(){
+  const type = document.getElementById('schoolType').value;
+  const region = document.getElementById('regionFilter').value;
+  const p = P();
+  const data = getData(type);
+  const tk = getTotalKey();
+  const yrs = getYears();
+  let r0, rN;
+  if(region==='all'){
+    r0 = data[tk][0]; rN = data[tk][yrs.length-1];
+  } else {
+    const {keys,data:d}=getDistrictData(type,region);
+    r0=keys.reduce((s,k)=>s+d[k][0],0);
+    rN=keys.reduce((s,k)=>s+d[k][yrs.length-1],0);
+  }
+  const pc = pct(r0,rN), pcn = parseFloat(pc);
+  const diff = rN-r0, diffStr=(diff>0?'+':'')+fmt(diff);
+  const typeLabel = type==='es'?'公立小学校':type==='jh'?'公立中学校':'小学校＋中学校';
+  const regionLabel = currentPref==='tokyo'
+    ? (region==='ku'?'区部':region==='shi'?'市部':p.name)
+    : (region==='ku'?'市':region==='shi'?'町村':p.name);
+
+  let cards='';
+  if(region==='all'){
+    const esTotal0=p.es[tk][0], jhTotal0=p.jh[tk][0];
+    cards=`
+      <div class="metric"><div class="metric-category">${typeLabel}｜${regionLabel}</div><div class="metric-label">${yrs[0]}現況</div><div class="metric-value">${fmt(r0)}</div><div class="metric-sub neutral">人</div></div>
+      <div class="metric"><div class="metric-category">${typeLabel}｜${regionLabel}</div><div class="metric-label">${yrs[yrs.length-1]}推計</div><div class="metric-value">${fmt(rN)}</div><div class="metric-sub ${pcn<0?'down':'up'}">${diffStr}人（${pc}%）</div></div>
+      <div class="metric"><div class="metric-category">公立小学校｜${regionLabel}</div><div class="metric-label">${yrs[0]}現況</div><div class="metric-value">${fmt(esTotal0)}</div><div class="metric-sub neutral">人</div></div>
+      <div class="metric"><div class="metric-category">公立中学校｜${regionLabel}</div><div class="metric-label">${yrs[0]}現況</div><div class="metric-value">${fmt(jhTotal0)}</div><div class="metric-sub neutral">人</div></div>`;
+  } else {
+    const {keys,data:d}=getDistrictData(type,region);
+    const maxK=keys.reduce((a,b)=>d[a][0]>d[b][0]?a:b);
+    const minRateK=keys.reduce((a,b)=>parseFloat(pct(d[a][0],d[a][yrs.length-1]))<parseFloat(pct(d[b][0],d[b][yrs.length-1]))?a:b);
+    const minRate=parseFloat(pct(d[minRateK][0],d[minRateK][yrs.length-1]));
+    cards=`
+      <div class="metric"><div class="metric-category">${typeLabel}｜${regionLabel}</div><div class="metric-label">${yrs[0]}現況合計</div><div class="metric-value">${fmt(r0)}</div><div class="metric-sub neutral">人</div></div>
+      <div class="metric"><div class="metric-category">${typeLabel}｜${regionLabel}</div><div class="metric-label">${yrs[yrs.length-1]}推計合計</div><div class="metric-value">${fmt(rN)}</div><div class="metric-sub ${pcn<0?'down':'up'}">${diffStr}人（${pc}%）</div></div>
+      <div class="metric"><div class="metric-category">${typeLabel}｜${regionLabel}｜${yrs[0]}最多</div><div class="metric-label">${maxK}</div><div class="metric-value">${fmt(d[maxK][0])}</div><div class="metric-sub neutral">人</div></div>
+      <div class="metric"><div class="metric-category">${typeLabel}｜${regionLabel}｜最大減少</div><div class="metric-label">${minRateK}</div><div class="metric-value">${minRate}%</div><div class="metric-sub down">${yrs[0]}→${yrs[yrs.length-1]}</div></div>`;
+  }
+  document.getElementById('metricsArea').innerHTML=cards;
+}
+
+// ========== チャート ==========
+
+function dc(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function renderOverview(){
+  dc('chartOverview');
+  const type = document.getElementById('schoolType').value;
+  const data = getData(type);
+  const p = P();
+  const yrs = getYears();
+  const tk = getTotalKey();
+  const areaKeys = [tk, '区部', '市町村部'].filter(k=>data[k]);
+  const colors = [p.color, p.color+'99', p.color+'55'];
+  document.getElementById('legend-overview').innerHTML =
+    areaKeys.map((l,i)=>`<span class="legend-item"><span class="legend-dot" style="background:${colors[i]}"></span>${l}</span>`).join('')
+    + '<span class="legend-item" style="margin-left:12px;gap:5px"><span style="display:inline-block;width:16px;height:0;border-top:2.5px solid #888;vertical-align:middle"></span>実数</span>'
+    + '<span class="legend-item" style="gap:5px"><span style="display:inline-block;width:16px;height:0;border-top:2.5px dashed #888;vertical-align:middle"></span>推計</span>';
+  // 実数(index=0)は大きい点、推計(index>=1)はsegmentで破線
+  const datasets = areaKeys.map((label,i)=>({
+    label,
+    data: data[label],
+    borderColor: colors[i],
+    backgroundColor: colors[i]+'12',
+    borderWidth: 2,
+    pointRadius: data[label].map((_,idx)=>idx===0?6:4),
+    pointStyle: data[label].map((_,idx)=>idx===0?'circle':'circle'),
+    tension: 0.3,
+    fill: false,
+    segment: {
+      borderDash: ctx => ctx.p0DataIndex === 0 ? [] : [5,4]
+    }
+  }));
+  charts['chartOverview'] = new Chart(document.getElementById('chartOverview'),{
+    type:'line',
+    data:{labels:yrs, datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${fmt(ctx.raw)}人`}}},
+      scales:{y:{ticks:{callback:v=>fmt(v)},grid:{color:'rgba(0,0,0,0.06)'}},x:{grid:{display:false}}}}
+  });
+}
+
+function renderRanking(){
+  dc('chartRanking');
+  const type = document.getElementById('schoolType').value;
+  const region = document.getElementById('regionFilter').value;
+  const topN = document.getElementById('topN').value;
+  const p = P();
+  const {keys,data}=getDistrictData(type,region);
+  let sorted=keys.map(k=>({name:k,val:data[k][selYearRanking]})).sort((a,b)=>b.val-a.val);
+  if(topN!=='all') sorted=sorted.slice(0,+topN);
+  document.getElementById('rankingChartWrap').style.height=(sorted.length*36+80)+'px';
+  charts['chartRanking']=new Chart(document.getElementById('chartRanking'),{
+    type:'bar',
+    data:{labels:sorted.map(d=>d.name),datasets:[{data:sorted.map(d=>d.val),backgroundColor:p.color+'cc',borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${fmt(ctx.raw)}人`}}},scales:{x:{ticks:{callback:v=>fmt(v)},grid:{color:'rgba(0,0,0,0.06)'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
+  });
+}
+
+function renderChange(){
+  dc('chartChange');
+  const type = document.getElementById('schoolType').value;
+  const region = document.getElementById('regionFilter').value;
+  const topN = document.getElementById('topN').value;
+  const bi = +document.getElementById('baseYearChange').value;
+  const ci = +document.getElementById('compYearChange').value;
+  const {keys,data}=getDistrictData(type,region);
+  let sorted=keys.map(k=>({name:k,rate:parseFloat(pct(data[k][bi],data[k][ci]))})).sort((a,b)=>a.rate-b.rate);
+  if(topN!=='all'){const n=+topN;sorted=[...sorted.slice(0,Math.ceil(n/2)),...sorted.slice(-Math.floor(n/2))];}
+  document.getElementById('changeChartWrap').style.height=(sorted.length*36+80)+'px';
+  charts['chartChange']=new Chart(document.getElementById('chartChange'),{
+    type:'bar',
+    data:{labels:sorted.map(d=>d.name),datasets:[{data:sorted.map(d=>d.rate),backgroundColor:sorted.map(d=>d.rate>=0?'#1D9E75cc':'#D85A30cc'),borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.raw.toFixed(1)}%`}}},scales:{x:{ticks:{callback:v=>v+'%'},grid:{color:'rgba(0,0,0,0.06)'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
+  });
+}
+
+function renderTable(){
+  const type = document.getElementById('schoolType').value;
+  const region = document.getElementById('regionFilter').value;
+  const {keys,data}=getDistrictData(type,region);
+  const yrs = getYears();
+  const lastIdx = yrs.length-1;
+  const rows=keys.map(k=>{
+    const rate=parseFloat(pct(data[k][0],data[k][lastIdx]));
+    const badge=rate>0?`<span class="badge badge-up">+${rate}%</span>`:rate<-5?`<span class="badge badge-down">${rate}%</span>`:`<span class="badge badge-flat">${rate}%</span>`;
+    return `<tr><td style="font-weight:500;white-space:nowrap">${k}</td>${data[k].map((v,i)=>`<td class="num${i===selYearTable?' hl':''}">${fmt(v)}</td>`).join('')}<td style="text-align:center">${badge}</td></tr>`;
+  }).join('');
+  document.getElementById('dataTable').innerHTML=`
+    <thead><tr><th>地区名</th>${yrs.map((y,i)=>`<th class="num${i===selYearTable?' hl':''}">${y}</th>`).join('')}<th style="text-align:center">増減率</th></tr></thead>
+    <tbody>${rows}</tbody>`;
+}
+
+// ========== アクティブタブ ==========
+
+function activeTab(){ return document.querySelector('.tab.active').dataset.tab; }
+
+function renderActiveTab(){
+  const tab = activeTab();
+  if(tab==='overview') renderOverview();
+  if(tab==='ranking') renderRanking();
+  if(tab==='change') renderChange();
+  if(tab==='table') renderTable();
+}
+
+function fullRefresh(){
+  initPrefUI();
+  updateMetrics();
+  renderActiveTab();
+}
+
+// ========== イベントリスナー ==========
+
+// 都県切替
+document.querySelectorAll('.pref-btn').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.pref-btn').forEach(b=>{
+    b.className='pref-btn';
+  });
+  currentPref=btn.dataset.pref;
+  btn.classList.add(`active-${currentPref}`);
+  fullRefresh();
+}));
+
+// タブ切替
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  renderActiveTab();
+}));
+
+['schoolType','regionFilter','topN'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{ updateMetrics(); renderActiveTab(); });
+});
+['baseYearChange','compYearChange'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{ if(activeTab()==='change') renderChange(); });
+});
+
+// ========== 初期描画 ==========
+fullRefresh();
+</script>
+</body>
+</html>
